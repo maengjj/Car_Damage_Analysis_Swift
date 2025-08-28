@@ -18,7 +18,7 @@ class ContentViewModel: ObservableObject {
     @Published var maskBreakage: UIImage?
     @Published var isProcessing = false
     @Published var errorMessage: String?
-    @Published var overlayOpacity: Double = 0.35
+    @Published var overlayOpacity: Double = 0.60
     @Published var selectedOverlays: Set<DamageOverlay> = []
 
     // MARK: - Private Properties

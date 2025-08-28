@@ -5,18 +5,36 @@ import PhotosUI
 struct ContentView: View {
     @StateObject private var viewModel = ContentViewModel()
 
+    private var hasAnyMask: Bool {
+        viewModel.maskScratch != nil ||
+        viewModel.maskSeparated != nil ||
+        viewModel.maskCrushed != nil ||
+        viewModel.maskBreakage != nil
+    }
+
     var body: some View {
         NavigationView {
             VStack(spacing: 16) {
                 imageDisplay
                 controlButtons
-                overlayControls
+                if hasAnyMask {
+                    overlayControls
+                        .transition(.move(edge: .bottom).combined(with: .opacity))
+                }
                 errorMessageDisplay
                 Spacer()
             }
             .padding()
-            .navigationTitle("차량파손판별 AI")
+            .animation(.easeInOut(duration: 0.25), value: hasAnyMask)
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .principal) {
+                    Text("자동차 파손 판별 AI")
+                        .font(.title.bold()) // 원하는 크기 지정
+                }
+            }
         }
+        
     }
 
     private var imageDisplay: some View {
@@ -31,8 +49,10 @@ struct ContentView: View {
                                 .resizable()
                                 .scaledToFit()
                         } else {
-                            Text("사진을 선택하세요")
-                                .foregroundStyle(.secondary)
+                            Image("logoCar")
+                                .resizable()
+                                .scaledToFit()
+                                .frame(maxWidth: 300)
                         }
                     }
                 )
@@ -101,31 +121,71 @@ struct ContentView: View {
     }
 
     private var overlayControls: some View {
-        VStack(spacing: 8) {
-            HStack(spacing: 16) {
-                CheckboxRow(title: "None", color: .secondary, checked: viewModel.selectedOverlays.isEmpty) {
-                    viewModel.clearOverlays()
-                }
-                CheckboxRow(title: "Scratch", color: Color(red: 0.80, green: 0.10, blue: 0.10), checked: viewModel.selectedOverlays.contains(.scratch)) {
-                    viewModel.toggleOverlay(.scratch)
-                }
-                CheckboxRow(title: "Separated", color: Color(red: 0.10, green: 0.55, blue: 0.10), checked: viewModel.selectedOverlays.contains(.separated)) {
-                    viewModel.toggleOverlay(.separated)
-                }
-                CheckboxRow(title: "Crushed", color: Color(red: 0.20, green: 0.35, blue: 0.80), checked: viewModel.selectedOverlays.contains(.crushed)) {
-                    viewModel.toggleOverlay(.crushed)
-                }
-                CheckboxRow(title: "Breakage", color: Color(red: 0.75, green: 0.55, blue: 0.10), checked: viewModel.selectedOverlays.contains(.breakage)) {
-                    viewModel.toggleOverlay(.breakage)
+        VStack(spacing: 12) {
+            // 손상 유형 선택 영역 (Chip 스타일)
+            VStack(alignment: .leading, spacing: 6) {
+                Text("손상 유형")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 8) {
+                        // None (전체 해제)
+                        Chip(
+                            title: "None",
+                            isSelected: viewModel.selectedOverlays.isEmpty,
+                            color: .secondary
+                        ) {
+                            viewModel.clearOverlays()
+                        }
+
+                        Chip(
+                            title: "Scratch",
+                            isSelected: viewModel.selectedOverlays.contains(.scratch),
+                            color: Color(red: 0.80, green: 0.10, blue: 0.10)
+                        ) {
+                            viewModel.toggleOverlay(.scratch)
+                        }
+
+                        Chip(
+                            title: "Separated",
+                            isSelected: viewModel.selectedOverlays.contains(.separated),
+                            color: Color(red: 0.10, green: 0.55, blue: 0.10)
+                        ) {
+                            viewModel.toggleOverlay(.separated)
+                        }
+
+                        Chip(
+                            title: "Crushed",
+                            isSelected: viewModel.selectedOverlays.contains(.crushed),
+                            color: Color(red: 0.20, green: 0.35, blue: 0.80)
+                        ) {
+                            viewModel.toggleOverlay(.crushed)
+                        }
+
+                        Chip(
+                            title: "Breakage",
+                            isSelected: viewModel.selectedOverlays.contains(.breakage),
+                            color: Color(red: 0.75, green: 0.55, blue: 0.10)
+                        ) {
+                            viewModel.toggleOverlay(.breakage)
+                        }
+                    }
+                    .padding(.vertical, 2)
                 }
             }
-            .font(.footnote)
-            .frame(maxWidth: .infinity, alignment: .leading)
 
-            HStack {
-                Text("투명도")
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
+            // 오버레이 투명도 조절
+            VStack(spacing: 6) {
+                HStack {
+                    Text("오버레이 투명도")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    Spacer()
+                    Text("\(Int(viewModel.overlayOpacity * 100))%")
+                        .font(.caption.monospacedDigit())
+                        .foregroundStyle(.secondary)
+                }
                 Slider(value: $viewModel.overlayOpacity, in: 0...1)
             }
         }
@@ -141,6 +201,37 @@ struct ContentView: View {
                     .padding(.horizontal)
             }
         }
+    }
+}
+
+
+struct Chip: View {
+    let title: String
+    let isSelected: Bool
+    let color: Color
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Text(title)
+                .font(.subheadline.bold())
+                .padding(.horizontal, 14)
+                .padding(.vertical, 8)
+                .frame(height: 34)
+                .contentShape(Capsule())
+        }
+        .buttonStyle(.plain)
+        .background(
+            Capsule()
+                .fill(isSelected ? color.opacity(0.9) : Color(UIColor.systemGray6))
+        )
+        .foregroundStyle(isSelected ? Color.white : Color.primary)
+        .overlay(
+            Capsule()
+                .stroke(isSelected ? Color.clear : Color(UIColor.separator), lineWidth: 1)
+        )
+        .shadow(color: isSelected ? .black.opacity(0.08) : .clear, radius: 2, x: 0, y: 1)
+        .accessibilityLabel(Text(title + (isSelected ? " 선택됨" : "")))
     }
 }
 
